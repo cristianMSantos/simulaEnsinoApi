@@ -12,10 +12,12 @@ Route::get('/test', function () {
 
 Route::middleware([Authenticate::class])->prefix('auth')->group(function ($router) {
 
-    Route::post('login', [AuthController::class, 'login'])->withoutMiddleware([Authenticate::class]);;
+    Route::post('login', [AuthController::class, 'login'])->withoutMiddleware([Authenticate::class]);
+    Route::post('check-user', [AuthController::class, 'checkUser'])->withoutMiddleware([Authenticate::class]);
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('refresh', [AuthController::class, 'refresh']);
     Route::post('me', [AuthController::class, 'me']);
+
     
 });
 

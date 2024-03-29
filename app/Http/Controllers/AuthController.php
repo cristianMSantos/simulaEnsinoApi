@@ -21,6 +21,11 @@ class AuthController extends Controller
         // $this->middleware('auth', ['except' => ['login']]);
     }
 
+    protected function userExists($userId)
+    {
+        return User::where('facebook_id', $userId)->exists();
+    }
+
     /**
      * Get a JWT via given credentials.
      *
@@ -49,6 +54,19 @@ class AuthController extends Controller
         return $this->respondWithToken($token);
     }
 
+    public function checkUser(Request $request)
+    {
+        $userId = $request->input('userId');
+
+        if (is_null($userId)) {
+            return response()->json(['error' => 'userId não informado'], 400);
+        }
+
+        $exists = $this->userExists($userId);
+
+        return response()->json(['exists' => $exists]);
+    }
+    
 
     /**
      * Get the authenticated User.
