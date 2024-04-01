@@ -21,11 +21,6 @@ class AuthController extends Controller
         // $this->middleware('auth', ['except' => ['login']]);
     }
 
-    protected function userExists($userId)
-    {
-        return User::where('facebook_id', $userId)->exists();
-    }
-
     /**
      * Get a JWT via given credentials.
      *
@@ -33,6 +28,12 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+
+        $provider = $request->input('data.provider');
+
+        if($provider === 'facebook'){
+            return $this->facebookLogin($request);
+        }
 
         $email = $request->input('email');
         $password = $request->input('password');
@@ -54,19 +55,32 @@ class AuthController extends Controller
         return $this->respondWithToken($token);
     }
 
-    public function checkUser(Request $request)
+    public function facebookLogin(Request $request)
     {
-        $userId = $request->input('userId');
 
-        if (is_null($userId)) {
-            return response()->json(['error' => 'userId não informado'], 400);
-        }
+        $userId = $request->input('data.userID');
+        // Verificar se o usuário já existe no banco de dados
+        $user = User::where('facebook_id', $userId)->first();
 
-        $exists = $this->userExists($userId);
+        // Gerar token de acesso para o usuário
+        $token = auth()->login($user);
 
-        return response()->json(['exists' => $exists]);
+        // Retornar o token de acesso
+        return $this->respondWithToken($token);
     }
+
     
+    public function registration(Request $request){
+
+        $cpf = str_replace(['.', '-'], '', $request->input('cpf'));
+        // Verificar se o usuário já existe no banco de dados
+        $user = User::where('cpf', $cpf)->first();
+
+        if($user){
+            return response()->json(['message' => 'The User already exists'], 401);
+        }
+    }
+
 
     /**
      * Get the authenticated User.
