@@ -35,8 +35,8 @@ class AuthController extends Controller
             return $this->facebookLogin($request);
         }
 
-        $email = $request->input('email');
-        $password = $request->input('password');
+        $email = $request->input('data.email');
+        $password = $request->input('data.password');
 
         // Verifique se o e-mail e a senha foram fornecidos
         if (is_null($email) || is_null($password)) {
@@ -52,7 +52,14 @@ class AuthController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        return $this->respondWithToken($token);
+        // Obtém o usuário autenticado
+        $user = auth()->user();
+
+        return response()->json([
+            'token_data' => $this->respondWithToken($token)->original,
+            'user' => $user
+        ]);
+        // return $this->respondWithToken($token);
     }
 
     public function facebookLogin(Request $request)
@@ -72,13 +79,86 @@ class AuthController extends Controller
     
     public function registration(Request $request){
 
-        $cpf = str_replace(['.', '-'], '', $request->input('cpf'));
+        $linkedAccount = $request->input('linkedAccount');
+        $cpf = str_replace(['.', '-'], '', $request->input('registration.cpf'));
         // Verificar se o usuário já existe no banco de dados
         $user = User::where('cpf', $cpf)->first();
 
-        if($user){
-            return response()->json(['message' => 'The User already exists'], 401);
+        if($user && !$linkedAccount){
+            return response()->json(['userPicture' => $user->picture, 'userStatus' => $user->status, 'userEmail' => $user->email, 'message' => 'The User already exists'], 401);
         }
+
+        if($user && $linkedAccount){
+            return $this->linkAccount($request);
+        }
+
+        // $newUser = new User;
+        // $newUser->username = ;
+        // $newUser->first_name = ;
+        // $newUser->last_name = ;
+        // $newUser->name = ;
+        // $newUser->cpf = ;
+        // // $newUser->password = ;
+        // $newUser->email = ;
+        // $newUser->facebook_id = ;
+        // $newUser->google_id = ;
+        // $newUser->picture = ;
+        // $newUser->status = ;
+        // $newUser->profile_id = ;
+        // $newUser->dt_create = ;
+        // // $newUser->save()
+    }
+
+    public function linkAccount(Request $request){
+        // return $request->input('registration.provider');
+        $provider = $request->input('registration.provider');
+        $userID = $request->input('registration.userID');
+        $cpf = str_replace(['.', '-'], '', $request->input('registration.cpf'));
+        $credentials = [
+            'email' => $request->input('linked.email'),
+            'password' => $request->input('linked.password')
+        ];
+
+        // Tente fazer login com as credenciais fornecidas
+        $loginAttempt = auth()->attempt($credentials);
+
+        date_default_timezone_set('america/sao_paulo');
+
+
+        if ($loginAttempt && User::where('cpf', $cpf)->exists()) {
+            $user = User::where('cpf', $cpf)->first();
+    
+            try {
+                if ($provider === 'facebook') {
+                    User::where('cpf', $cpf)->update([
+                        'facebook_id' => $userID,
+                        'dt_update' => date('Y-m-d H:i', time()),
+                    ]);
+                }
+    
+                if ($provider === 'google') {
+                    User::where('cpf', $cpf)->update([
+                        'google_id' => $userID,
+                        'dt_update' => date('Y-m-d H:i', time()),
+                    ]);
+                }
+
+                 // Obtém o usuário autenticado
+                $userAuth = auth()->user();
+
+                return response()->json([
+                    'token_data' => $this->respondWithToken($loginAttempt)->original,
+                    'user' => $userAuth
+                ]);
+    
+            } catch (\Exception $e) {
+                return response()->json([
+                    'error' => 'Error linking account. Please try again later.'
+                ], 500); 
+            }
+        }
+
+        return response()->json(['error' => 'Unauthorized', 'message' => 'Unauthorized'], 401);
     }
 
 
